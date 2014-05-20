@@ -79,3 +79,28 @@
     </div>
   </div>
 </div>
+
+<div class="influxdb-login" ng-controller="InfluxLoginCtrl" style="display:none;">
+  <table>
+    <tr>
+        <td><label>Hostname</label></td>
+        <td><input id="influxdb_host" type="text"></td>
+    </tr>
+    <tr>
+      <td><label>Database</label></td>
+      <td><input id="influxdb_database" type="text"></td>
+    </tr>
+    <tr>
+      <td><label>User</label></td>
+      <td><input id="influxdb_user" type="text"></td>
+    </tr>
+    <tr>
+      <td><label>Password</label></td>
+      <td><input id="influxdb_password" type="password"></td>
+    </tr>
+    <tr>
+        <td>
+        <td><a href="#" class="button" ng-click="login()">Login</a></td>
+    </tr>
+  </table>
+</div>

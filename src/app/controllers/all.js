@@ -1,6 +1,7 @@
 define([
   './dash',
   './dashLoader',
+  './influxLoginCtrl',
   './row',
   './submenuCtrl',
   './pulldown',
