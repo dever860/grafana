@@ -107,13 +107,7 @@
             "value_type": "cumulative",
             "query_as_alias": true
           },
-          "targets": [
-            {
-              "target": "randomWalk('random walk')",
-              "function": "mean",
-              "column": "value"
-            }
-          ],
+          "targets": [],
           "aliasColors": {},
           "aliasYAxis": {},
           "title": "First Graph (click title to edit)",

@@ -4,10 +4,10 @@ define([
   'kbn',
   './influxSeries',
   './queryBuilder',
-  './queryCtrl',
+  './queryCtrl090',
   './funcEditor',
 ],
-function (angular, _, kbn, InfluxSeries, InfluxQueryBuilder) {
+function (angular, _, kbn, InfluxSeries) {
   'use strict';
 
   var module = angular.module('grafana.services');
@@ -19,6 +19,7 @@ function (angular, _, kbn, InfluxSeries, InfluxQueryBuilder) {
       this.urls = datasource.urls;
       this.username = datasource.username;
       this.password = datasource.password;
+      this.database = datasource.database;
       this.name = datasource.name;
       this.basicAuth = datasource.basicAuth;
       this.grafanaDB = datasource.grafanaDB;
@@ -28,38 +29,66 @@ function (angular, _, kbn, InfluxSeries, InfluxQueryBuilder) {
 
       this.supportAnnotations = true;
       this.supportMetrics = true;
-      this.editorSrc = 'app/features/influxdb/partials/query.editor.html';
-      this.annotationEditorSrc = 'app/features/influxdb/partials/annotations.editor.html';
+      // this.editorSrc = 'app/features/influxdb/partials/query.editor.html';
+      // this.annotationEditorSrc = 'app/features/influxdb/partials/annotations.editor.html';
+      this.editorSrc = 'app/features/influxdb/partials/graphite-query.editor.html';
+      this.annotationEditorSrc = 'app/features/influxdb/partials/graphite-annotations.editor.html';
     }
 
     InfluxDatasource.prototype.query = function(options) {
-      var timeFilter = getTimeFilter(options);
-
       var promises = _.map(options.targets, function(target) {
-        if (target.hide || !((target.series && target.column) || target.query)) {
-          return [];
+        var parts = target.target.split('.');
+        var measurement = parts.shift();
+        var query = 'SELECT value FROM ' + measurement;
+
+        if (parts.length >= 2 && parts[1] !== 'select tag value' && parts[1] !== 'select tag key') {
+          query += ' WHERE ' + parts[0] + " = '" + parts[1] + "'";
+          parts = parts.slice(2);
         }
 
+        while (parts.length >= 2 && parts[1] !== 'select tag value' && parts[1] !== 'select tag key') {
+          query += ' AND ' + parts[0] + " = '" + parts[1] + "'";
+          parts = parts.slice(2);
+        }
+
+        return this._influxRequest('GET', '/query', {q: query}, 'SELECT');
+        // if (target.hide || !((target.series && target.column) || target.query)) {
+          // return [];
+        // }
+
         // build query
-        var queryBuilder = new InfluxQueryBuilder(target);
-        var query = queryBuilder.build();
+        // var queryBuilder = new InfluxQueryBuilder(target);
+        // var query = queryBuilder.build();
 
-        // replace grafana variables
-        query = query.replace('$timeFilter', timeFilter);
-        query = query.replace(/\$interval/g, (target.interval || options.interval));
+        // console.log("The built query was: " + query);
 
-        // replace templated variables
-        query = templateSrv.replace(query);
+        // // replace grafana variables
+        // query = query.replace('$timeFilter', timeFilter);
+        // query = query.replace(/\$interval/g, (target.interval || options.interval));
 
-        var alias = target.alias ? templateSrv.replace(target.alias) : '';
+        // // replace templated variables
+        // query = templateSrv.replace(query);
 
-        var handleResponse = _.partial(handleInfluxQueryResponse, alias, queryBuilder.groupByField);
-        return this._seriesQuery(query).then(handleResponse);
+        // var alias = target.alias ? templateSrv.replace(target.alias) : '';
+
+        // var handleResponse = _.partial(handleInfluxQueryResponse, alias, queryBuilder.groupByField);
+        // return this._seriesQuery(query).then(handleResponse);
 
       }, this);
 
-      return $q.all(promises).then(function(results) {
-        return { data: _.flatten(results) };
+      return $q.all(promises).then(function(response) {
+        console.log("response:", response)
+        if (response.length == 0) {
+          console.log("empty response")
+        }
+        // INFLUXNOTE: if data isn't rendering, ensure a 13-digit timestamp here
+        var result = { datapoints: response[0].results[0].series[0].values, target: response[0].results[0].series[0].name };
+        for (var i = 0; i < result.datapoints.length; i++) {
+          var pair = result.datapoints[i];
+          var adjustedTimestamp = Date.parse(pair[0]);
+          result.datapoints[i] = [pair[1], adjustedTimestamp];
+        }
+        return { data: [result] };
       });
     };
 
@@ -106,7 +135,7 @@ function (angular, _, kbn, InfluxSeries, InfluxQueryBuilder) {
       });
     };
 
-    InfluxDatasource.prototype.metricFindQuery = function (query) {
+    InfluxDatasource.prototype.metricFindQuery = function (query, queryType) {
       var interpolated;
       try {
         interpolated = templateSrv.replace(query);
@@ -115,16 +144,42 @@ function (angular, _, kbn, InfluxSeries, InfluxQueryBuilder) {
         return $q.reject(err);
       }
 
-      return this._seriesQuery(interpolated)
+      if (!interpolated) {
+        return $q.reject('y u no interpolate');
+      }
+
+      console.log('metricFindQuery called with: ' + [query, queryType].join(', '));
+
+      return this._seriesQuery(interpolated, queryType)
         .then(function (results) {
           if (!results || results.length === 0) { return []; }
+          var qt = results._queryType;
 
-          return _.map(results[0].points, function (metric) {
-            return {
-              text: metric[1],
-              expandable: false
-            };
-          });
+          if (qt === 'MEASUREMENTS') {
+            return _.map(results, function(result) {
+              return {
+                text: result.name,
+                expandable: true
+              };
+            });
+          }
+
+          if (qt === 'TAG_KEYS') {
+            return _.map(results[0].values[0], function(tagKey) {
+              return {
+                text: tagKey,
+                expandable: true
+              };
+            });
+          }
+
+          // if (qt === 'TAG_VALUES') {
+          // }
+
+          // if (qt === 'SELECT') {
+          // }
+
+          throw('unknown query type: ' + qt);
         });
     };
 
@@ -142,13 +197,30 @@ function (angular, _, kbn, InfluxSeries, InfluxQueryBuilder) {
       });
     }
 
-    InfluxDatasource.prototype._seriesQuery = function(query) {
-      return this._influxRequest('GET', '/series', {
+    InfluxDatasource.prototype._seriesQuery = function(query, queryType) {
+      if (!queryType) {
+        if (query) {
+          throw('must specify queryType');
+        }
+
+        query = 'SHOW MEASUREMENTS';
+        queryType = 'MEASUREMENTS';
+      }
+
+      console.log('_seriesQuery called with: ' + query);
+      if (query && query !== 'SHOW MEASUREMENTS') {
+        query = 'SHOW TAG KEYS FROM ' + query;
+      } else {
+        query = 'SHOW MEASUREMENTS';
+      }
+      console.log('Translated that into: ' + query);
+
+      return this._influxRequest('GET', '/query', {
         q: query,
-      });
+      }, queryType);
     };
 
-    InfluxDatasource.prototype._influxRequest = function(method, url, data) {
+    InfluxDatasource.prototype._influxRequest = function(method, url, data, queryType) {
       var _this = this;
       var deferred = $q.defer();
 
@@ -159,6 +231,7 @@ function (angular, _, kbn, InfluxSeries, InfluxQueryBuilder) {
         var params = {
           u: _this.username,
           p: _this.password,
+          db: _this.database,
         };
 
         if (method === 'GET') {
@@ -180,6 +253,7 @@ function (angular, _, kbn, InfluxSeries, InfluxQueryBuilder) {
         }
 
         return $http(options).success(function (data) {
+          data._queryType = queryType;
           deferred.resolve(data);
         });
       }, 10);
@@ -357,16 +431,6 @@ function (angular, _, kbn, InfluxSeries, InfluxQueryBuilder) {
         return hits;
       });
     };
-
-    function handleInfluxQueryResponse(alias, groupByField, seriesList) {
-      var influxSeries = new InfluxSeries({
-        seriesList: seriesList,
-        alias: alias,
-        groupByField: groupByField
-      });
-
-      return influxSeries.getTimeSeries();
-    }
 
     function getTimeFilter(options) {
       var from = getInfluxTime(options.range.from);
