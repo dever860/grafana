@@ -1,109 +1,144 @@
-[Grafana](http://grafana.org) [![Build Status](https://api.travis-ci.org/torkelo/grafana.png)](https://travis-ci.org/torkelo/grafana)
-=================
-A beautiful, easy to use and feature rich Graphite dashboard replacement and graph editor. Visit [grafana.org](http://grafana.org) for screenshots, videos and feature descriptions.
+[Grafana](https://grafana.com) [![Circle CI](https://circleci.com/gh/grafana/grafana.svg?style=svg)](https://circleci.com/gh/grafana/grafana) [![Go Report Card](https://goreportcard.com/badge/github.com/grafana/grafana)](https://goreportcard.com/report/github.com/grafana/grafana) [![codecov](https://codecov.io/gh/grafana/grafana/branch/master/graph/badge.svg)](https://codecov.io/gh/grafana/grafana)
+================
+[Website](https://grafana.com) |
+[Twitter](https://twitter.com/grafana) |
+[Community & Forum](https://community.grafana.com)
 
-![](http://grafana.org/assets/img/edit_dashboards.png)
+Grafana is an open source, feature rich metrics dashboard and graph editor for
+Graphite, Elasticsearch, OpenTSDB, Prometheus and InfluxDB.
 
-## Features
-### Graphite Target Editor
-- Graphite target expression parser
-- Quickly add / edit / remove function ([video demo](http://youtu.be/I90WHRwE1ZM))
-- Function parameters can be easily changed
-- Quickly navigate graphite metric structure
-- Templating
-- Integrated links to function documentation
-- Rearrange function order
-- Native Graphite PNG render support
+![](http://docs.grafana.org/assets/img/features/dashboard_ex1.png)
 
-### Graphing
-- Fast rendering, even over large timespans.
-- Click and drag to zoom.
-- Multiple Y-axis.
-- Bars, Lines, Points.
-- Smart Y-axis formating
-- Series toggles & color selector
-- Axis labels
-- Grid thresholds, axis labels
-- [Annotations] (https://github.com/torkelo/grafana/wiki/Annotations)
+## Installation
+Head to [docs.grafana.org](http://docs.grafana.org/installation/) and [download](https://grafana.com/get)
+the latest release.
 
-### Dashboards
-- Create and edit dashboards
-- Drag and drop graphs to rearrange
-- Set column spans and row heights
-- Save & [search dashboards](https://github.com/torkelo/grafana/wiki/Search-features)
-- Import & export dashboard (json file)
-- Import dashboard from Graphite
-- Templating
-- [Scripted dashboards](https://github.com/torkelo/grafana/wiki/Scripted-dashboards) (generate from js script and url parameters)
-- Flexible [time range controls](https://github.com/torkelo/grafana/wiki/Time-range-controls)
-- [Dashboard playlists](https://github.com/torkelo/grafana/wiki/Dashboard-playlist)
+If you have any problems please read the [troubleshooting guide](http://docs.grafana.org/installation/troubleshooting/).
 
-### InfluxDB
-- [Use InfluxDB](https://github.com/torkelo/grafana/wiki/InfluxDB) as metric datasource
+## Documentation & Support
+Be sure to read the [getting started guide](http://docs.grafana.org/guides/gettingstarted/) and the other feature guides.
 
-# Requirements
-Grafana is very easy to install. It is a client side web app with no backend. Any webserver will do. Optionally you will need ElasticSearch if you want to be able to save and load dashboards quickly instead of json files or local storage.
+## Run from master
+If you want to build a package yourself, or contribute - Here is a guide for how to do that. You can always find
+the latest master builds [here](https://grafana.com/grafana/download)
 
-# Installation
-- Download and extract the [latest release](https://github.com/torkelo/grafana/releases).
-- Edit config.js, then change graphiteUrl and elasticsearch to point to the correct urls. The urls entered here must be reachable by your browser.
-- Point your browser to the installation.
+### Dependencies
 
-To run from master:
-- Clone this repository
-- Start a web server in src folder
-- Or create a optimized & minified build:
- - npm install (requires nodejs)
- - grunt build
+- Go (Latest Stable)
+- NodeJS LTS
 
-When you have Grafana up an running, read the [Getting started](https://github.com/torkelo/grafana/wiki/Getting-started) guide for
-an introduction on how to use Grafana and/or watch [this video](https://www.youtube.com/watch?v=OUvJamHeMpw) for a guide in creating a new dashboard and for creating
-templated dashboards.
-
-# Graphite server config
-If you haven't used an alternative dashboard for graphite before you need to enable cross-domain origin request. For Apache 2.x:
-```
-Header set Access-Control-Allow-Origin "*"
-Header set Access-Control-Allow-Methods "GET, OPTIONS"
-Header set Access-Control-Allow-Headers "origin, authorization, accept"
+### Building the backend
+```bash
+go get github.com/grafana/grafana
+cd $GOPATH/src/github.com/grafana/grafana
+go run build.go setup
+go run build.go build
 ```
 
-If your Graphite web is proteced by basic authentication, you have to enable the HTTP verb OPTIONS, origin
-(no wildcards are allowed in this case) and add Access-Control-Allow-Credentials. This looks like the following for Apache:
-```
-Header set Access-Control-Allow-Origin "http://mygrafana.com:5656"
-Header set Access-Control-Allow-Credentials true
+### Building frontend assets
 
-<Location />
-    AuthName "graphs restricted"
-    AuthType Basic
-    AuthUserFile /etc/apache2/htpasswd
-    <LimitExcept OPTIONS>
-      require valid-user
-    </LimitExcept>
-</Location>
+For this you need nodejs (v.6+).
+
+To build the assets, rebuild on file change, and serve them by Grafana's webserver (http://localhost:3000):
+```bash
+npm install -g yarn
+yarn install --pure-lockfile
+yarn watch
 ```
 
-# Roadmap
-- Improve and refine the target parser and editing
-- Improve graphite import feature
-- Refine and simplify common tasks
-- More panel types (not just graphs)
-- Use elasticsearch to search for metrics
-- Improve template support
-- Annotate graph by querying ElasticSearch for events (or other event sources)
-- Add support for other time series databases like InfluxDB
+Build the assets, rebuild on file change with Hot Module Replacement (HMR), and serve them by webpack-dev-server (http://localhost:3333):
+```bash
+yarn start
+# OR set a theme
+env GRAFANA_THEME=light yarn start
+```
+Note: HMR for Angular is not supported. If you edit files in the Angular part of the app, the whole page will reload.
 
-# Contribute
-If you have any idea for an improvement or found a bug do not hesitate to open an issue. And if you have time clone this repo and submit a pull request and help me make Grafana the kickass metrics & devops dashboard we all dream about!
+Run tests
+```bash
+yarn jest
+```
 
-Clone repository:
-- npm install
-- grunt server (starts development web server in src folder)
-- grunt (runs jshint and less -> css compilation)
+### Recompile backend on source change
 
-# Notice
-This software is based on the great log dashboard [kibana](https://github.com/elasticsearch/kibana).
+To rebuild on source change.
+```bash
+go get github.com/Unknwon/bra
+bra run
+```
 
-# License
-Grafana is distributed under Apache 2.0 License.
+Open grafana in your browser (default: `http://localhost:3000`) and login with admin user (default: `user/pass = admin/admin`).
+
+### Building a Docker image
+
+There are two different ways to build a Grafana docker image. If you're machine is setup for Grafana development and you run linux/amd64 you can build just the image. Otherwise, there is the option to build Grafana completely within Docker.
+
+Run the image you have built using: `docker run --rm -p 3000:3000 grafana/grafana:dev`
+
+#### Building on linux/amd64 (fast)
+
+1. Build the frontend `go run build.go build-frontend`
+2. Build the docker image `make build-docker-dev`
+
+The resulting image will be tagged as `grafana/grafana:dev`
+
+#### Building anywhere (slower)
+
+Choose this option to build on platforms other than linux/amd64 and/or not have to setup the Grafana development environment.
+
+1. `make build-docker-full` or `docker build -t grafana/grafana:dev .`
+
+The resulting image will be tagged as `grafana/grafana:dev`
+
+Notice: If you are using Docker for MacOS, be sure to let limit of Memory bigger than 2 GiB (at docker -> Perferences -> Advanced), otherwize you may faild at `grunt build`
+
+### Dev config
+
+Create a custom.ini in the conf directory to override default configuration options.
+You only need to add the options you want to override. Config files are applied in the order of:
+
+1. grafana.ini
+1. custom.ini
+
+In your custom.ini uncomment (remove the leading `;`) sign. And set `app_mode = development`.
+
+### Running tests
+
+#### Frontend
+Execute all frontend tests
+```bash
+yarn test
+```
+
+Writing & watching frontend tests
+
+- Start watcher: `yarn jest`
+- Jest will run all test files that end with the name ".test.ts"
+
+#### Backend
+```bash
+# Run Golang tests using sqlite3 as database (default)
+go test ./pkg/...
+
+# Run Golang tests using mysql as database - convenient to use /docker/blocks/mysql_tests
+GRAFANA_TEST_DB=mysql go test ./pkg/...
+
+# Run Golang tests using postgres as database - convenient to use /docker/blocks/postgres_tests
+GRAFANA_TEST_DB=postgres go test ./pkg/...
+```
+
+## Contribute
+
+If you have any idea for an improvement or found a bug, do not hesitate to open an issue.
+And if you have time clone this repo and submit a pull request and help me make Grafana
+the kickass metrics & devops dashboard we all dream about!
+
+## Plugin development
+
+Checkout the [Plugin Development Guide](http://docs.grafana.org/plugins/developing/development/) and checkout the [PLUGIN_DEV.md](https://github.com/grafana/grafana/blob/master/PLUGIN_DEV.md) file for changes in Grafana that relate to
+plugin development.
+
+## License
+
+Grafana is distributed under [Apache 2.0 License](https://github.com/grafana/grafana/blob/master/LICENSE.md).
+
